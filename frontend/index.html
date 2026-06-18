@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incidencia Respiratoria MX - AI Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Grid.js for Raw Data Explorer -->
+    <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+    <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- SIDEBAR (Left Menu) -->
+    <aside class="icon-sidebar">
+        <button class="sidebar-btn active" data-tab="tab-dashboard" title="Dashboard">
+            <i class="fa-solid fa-chart-line" style="color:var(--accent-orange);"></i>Dashboard
+        </button>
+        <button class="sidebar-btn" data-tab="tab-map" title="Mapa de Riesgo">
+            <i class="fa-solid fa-map-location-dot" style="color:var(--accent-green);"></i>Mapa
+        </button>
+        <button class="sidebar-btn" data-tab="tab-simulator" title="Simulador IA">
+            <i class="fa-solid fa-brain" style="color:var(--accent-purple);"></i>Simulador
+        </button>
+        <button class="sidebar-btn" data-tab="tab-metrics" title="Evaluación Modelos">
+            <i class="fa-solid fa-chart-pie" style="color:var(--accent-yellow);"></i>Modelos
+        </button>
+    </aside>
+
+    <!-- MAIN WRAPPER -->
+    <div class="main-wrapper" style="overflow-y: auto;">
+        
+        <!-- Top Header -->
+        <header class="top-header">
+            <div class="breadcrumb">
+                Análisis Predictivo > <strong>Riesgo Respiratorio MX</strong>
+            </div>
+            
+            <div class="top-controls">
+                <button id="btn-theme-toggle" class="btn-theme" title="Cambiar Tema Clínico/Ambiental"><i class="fa-solid fa-lightbulb"></i> Tema</button>
+                <select id="state-filter">
+                    <option value="Nacional">Nacional</option>
+                </select>
+                <select id="year-filter">
+                    <option value="Todos">Años: Todos</option>
+                </select>
+                <!-- Oculto en algunas vistas, visible globalmente para que funcione -->
+                <select id="model-filter" style="background: rgba(155, 89, 182, 0.2); border: 1px solid var(--accent-purple);">
+                    <option value="Regresion_Logistica">Regresión Logística</option>
+                    <option value="Random_Forest">Random Forest</option>
+                    <option value="XGBoost">XGBoost</option>
+                    <option value="Red_Neuronal_Simple">Red Neuronal Simple (MLP)</option>
+                </select>
+                <button id="btn-export" class="btn-export"><i class="fa-solid fa-download"></i> Descargar Dataset</button>
+            </div>
+        </header>
+
+        <!-- TAB 1: Dashboard (MZ ECO Grid Layout) -->
+        <main id="tab-dashboard" class="tab-content active">
+            <div class="dashboard-grid">
+                
+                <!-- Center Block: Evolución -->
+                <div class="panel center-block">
+                    <!-- Top KPIs -->
+                    <div class="top-kpis">
+                        <div class="kpi-item ozono">
+                            <div class="kpi-label">Tasa Incidencia (100k)</div>
+                            <div class="kpi-val" id="kpi-rate">0.00</div>
+                        </div>
+                        <div class="kpi-item azufre">
+                            <div class="kpi-label">PM2.5 Promedio Nacional</div>
+                            <div class="kpi-val" id="kpi-pm25">0.00 <span class="kpi-unit">µg/m³</span></div>
+                        </div>
+                        <div class="kpi-item nitrogeno">
+                            <div class="kpi-label">Total Casos Registrados</div>
+                            <div class="kpi-val" id="kpi-cases">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="panel-title">Evolución Temporal de Casos y PM2.5</div>
+                    <div class="panel-subtitle">Análisis histórico mensual con Proyección IA a 3 meses</div>
+                    <div id="chart-evolution" class="main-chart-container"></div>
+                </div>
+                
+                <!-- Right Block: Distribución -->
+                <div class="panel right-block">
+                    <div class="panel-title">Comparación de Contaminantes</div>
+                    <div class="panel-subtitle">Niveles de PM2.5 y PM10 por Estado</div>
+                    <div id="chart-distribution" style="flex: 1; min-height: 400px;"></div>
+                </div>
+                
+                <!-- Bottom Row -->
+                <div class="bottom-row">
+                    <!-- Acumulado -->
+                    <div class="panel">
+                        <div class="panel-title">Matriz de Correlación</div>
+                        <div class="panel-subtitle">Impacto multivariable (Clima/Contaminación vs Casos)</div>
+                        <div id="correlation-chart" style="flex: 1; min-height: 200px;"></div>
+                    </div>
+                    
+                    <!-- Gauge -->
+                    <div class="panel" style="align-items: center; justify-content: center;">
+                        <div class="panel-title" style="text-align: center;">Nivel de Riesgo Promedio</div>
+                        <div class="panel-subtitle" style="text-align: center;">Indicador Nacional</div>
+                        <div id="chart-gauge-static" style="width: 100%; height: 180px;"></div>
+                    </div>
+                    
+                    <!-- Mini KPIs -->
+                    <div class="panel" style="justify-content: center; gap: 10px;">
+                        <div style="background: rgba(0,0,0,0.2); padding: 10px; text-align: center;">
+                            <div class="kpi-label">Estado con Mayor Riesgo Histórico</div>
+                            <div class="kpi-val" id="kpi-max-state" style="font-size: 20px;">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- TAB 2: Mapa -->
+        <main id="tab-map" class="tab-content">
+            <div class="panel" style="height: 100%; min-height: 700px; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; gap: 20px;">
+                    <div style="flex: 1;">
+                        <div class="panel-title" style="font-size: 24px; color: var(--accent-orange);">Mapa Coroplético Nacional de Riesgo</div>
+                        <div class="panel-subtitle" style="font-size: 13px; margin-top: 8px; line-height: 1.5;">
+                            <strong style="color: #fff;">¿Qué muestra este mapa?</strong> Este mapa interactivo clasifica los 32 estados de México según su Tasa Promedio de Riesgo Respiratorio. La escala de colores representa la severidad: las zonas en verde indican riesgo bajo y factores ambientales estables, mientras que las zonas en rojo oscuro alertan sobre riesgo crítico por alta incidencia clínica, PM2.5 elevado o demografía vulnerable.
+                            <br><br>
+                            <strong style="color: #fff;">¿Qué hace el botón de Reproducir?</strong> Al presionarlo, el sistema inicia un <span style="color: var(--accent-green);">Time-Lapse (Evolución Cronológica)</span>. La plataforma filtrará y redibujará el mapa iterando año tras año (desde 2018 hasta 2026). Esto te permite observar visualmente cómo se expanden o contraen los focos rojos de riesgo respiratorio en el territorio nacional con el paso del tiempo.
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <button id="btn-map-play" class="btn-export" style="background: var(--accent-green); font-size: 15px; padding: 12px 20px; white-space: nowrap; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);"><i class="fa-solid fa-play"></i> Reproducir Evolución</button>
+                    </div>
+                </div>
+                <div id="mexico-map" style="flex: 1; width: 100%; min-height: 500px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;"></div>
+            </div>
+        </main>
+        
+        <!-- TAB 3: Simulador IA -->
+        <main id="tab-simulator" class="tab-content">
+            <div class="panel-title" style="font-size: 24px; color: var(--accent-purple); margin-bottom: 20px;">Simulador de Riesgo Clínico-Ambiental (IA)</div>
+            
+            <div class="dashboard-grid" style="grid-template-columns: 1fr 1fr; grid-template-rows: auto;">
+                <div class="panel">
+                    <div class="panel-title">Valores de Entrada Ambientales y Demográficos</div>
+                    
+                    <div style="margin-top: 15px; margin-bottom: 15px;">
+                        <label>Pre-rellenar con datos de:</label>
+                        <select id="sim-state-preset" style="width: 100%; margin-top: 5px;"></select>
+                    </div>
+
+                    <div class="sim-controls">
+                        <!-- Clima -->
+                        <div>
+                            <label>Temp (°C): <span id="val-temp" style="color:var(--accent-orange); font-weight:bold;">20.0</span></label>
+                            <input type="range" id="sim-temp" min="-5" max="45" step="0.1" value="20">
+                        </div>
+                        <div>
+                            <label>Lluvia (mm): <span id="val-prec" style="color:var(--accent-orange); font-weight:bold;">50.0</span></label>
+                            <input type="range" id="sim-prec" min="0" max="500" step="1" value="50">
+                        </div>
+                        <div>
+                            <label>Humedad (%): <span id="val-hum" style="color:var(--accent-orange); font-weight:bold;">60.0</span></label>
+                            <input type="range" id="sim-hum" min="0" max="100" step="0.1" value="60">
+                        </div>
+                        <!-- Aire -->
+                        <div>
+                            <label>PM2.5 (µg/m³): <span id="val-pm25" style="color:var(--accent-orange); font-weight:bold;">15.0</span></label>
+                            <input type="range" id="sim-pm25" min="1" max="150" step="0.1" value="15">
+                        </div>
+                        <div>
+                            <label>PM10 (µg/m³): <span id="val-pm10" style="color:var(--accent-orange); font-weight:bold;">30.0</span></label>
+                            <input type="range" id="sim-pm10" min="2" max="250" step="0.1" value="30">
+                        </div>
+                        <div>
+                            <label>Ozono O3 (ppm): <span id="val-o3" style="color:var(--accent-orange); font-weight:bold;">0.030</span></label>
+                            <input type="range" id="sim-o3" min="0.001" max="0.150" step="0.001" value="0.030">
+                        </div>
+                        <!-- Demografía -->
+                        <div>
+                            <label>Población Vulnerable (%): <span id="val-vuln" style="color:var(--accent-orange); font-weight:bold;">12.0</span></label>
+                            <input type="range" id="sim-vuln" min="5" max="30" step="0.1" value="12">
+                        </div>
+                        <div>
+                            <label>Densidad (hab/km²):</label>
+                            <input type="number" id="sim-dens" value="150" min="1" style="width:100%; padding: 5px; background: rgba(0,0,0,0.2); color:white; border:1px solid rgba(255,255,255,0.2);">
+                        </div>
+                    </div>
+                    
+                    <button id="btn-predict" class="btn-export" style="margin-top:30px; width:100%; padding: 15px; font-size: 16px; background: var(--accent-purple);">Ejecutar Predicción IA</button>
+                    
+                    <button id="btn-pdf" class="btn-export" style="margin-top:10px; width:100%; padding: 15px; font-size: 16px; background: #c0392b; display: none;">
+                        <i class="fa-solid fa-file-pdf"></i> Generar Reporte Clínico PDF
+                    </button>
+                </div>
+                
+                <div class="panel" id="pdf-content-area">
+                    <div class="panel-title">Diagnóstico IA en Tiempo Real</div>
+                    <div class="panel-subtitle">Evaluando con modelo seleccionado en barra superior</div>
+                    
+                    <div id="prediction-box" style="margin-top:20px; font-size: 16px; padding: 20px; border-radius: 8px; background: rgba(0,0,0,0.3); min-height: 150px;">
+                        <em>Esperando parámetros para ejecutar la predicción...</em>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <div id="gauge-chart" style="flex: 1; height: 300px;"></div>
+                        <div id="radar-chart" style="flex: 1; height: 300px;"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- TAB 4: Modelos -->
+        <main id="tab-metrics" class="tab-content">
+            <div class="panel-title" style="font-size: 24px; color: var(--accent-yellow); margin-bottom: 20px;">Evaluación y Rendimiento de Modelos</div>
+            <div class="panel" style="margin-bottom: 20px;">
+                <div class="panel-title">Gráfica Comparativa de Métricas por Modelo</div>
+                <div class="panel-subtitle">Comparativa de rendimiento (Exactitud, Puntuación F1, AUC-ROC)</div>
+                <div id="metrics-bar-chart" style="width: 100%; height: 350px;"></div>
+            </div>
+            
+            <div class="dashboard-grid" style="grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto;">
+                <div class="panel">
+                    <div class="panel-title">Matriz de Confusión</div>
+                    <div id="confusion-matrix-chart" style="width: 100%; height: 350px;"></div>
+                </div>
+                <div class="panel">
+                    <div class="panel-title">Curva ROC</div>
+                    <div id="roc-chart" style="width: 100%; height: 350px;"></div>
+                </div>
+                <div class="panel">
+                    <div class="panel-title">Importancia de Variables</div>
+                    <div class="panel-subtitle" style="font-size: 11px;">(Top 10 para XGBoost/RF)</div>
+                    <div id="feature-importance-chart" style="width: 100%; height: 350px;"></div>
+                </div>
+            </div>
+        </main>
+
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
